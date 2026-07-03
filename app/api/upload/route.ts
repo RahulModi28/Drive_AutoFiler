@@ -9,6 +9,7 @@ export const runtime = "nodejs"
 export const maxDuration = 60
 
 export async function POST(req: NextRequest) {
+  try {
   const session = await getServerSession(authOptions)
   const accessToken = (session as any)?.accessToken
   const userEmail = (session as any)?.user?.email
@@ -83,4 +84,8 @@ export async function POST(req: NextRequest) {
     reason: decision.reason,
     driveLink,
   })
+  } catch (err: any) {
+    console.error("Upload error:", err)
+    return NextResponse.json({ error: err?.message ?? "Unknown error" }, { status: 500 })
+  }
 }
