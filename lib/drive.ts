@@ -34,14 +34,34 @@ export async function listRootFolders(
   accessToken: string
 ): Promise<{ id: string; name: string }[]> {
   const drive = getDriveClient(accessToken)
-  const res = await drive.files.list({
+
+  // Try root children first
+  const rootRes = await drive.files.list({
     q: "'root' in parents and mimeType='application/vnd.google-apps.folder' and trashed=false",
     fields: "files(id,name)",
     pageSize: 50,
   })
-  return (res.data.files ?? []).filter(
-    (f): f is { id: string; name: string } => !!f.id && !!f.name
-  )
+
+  // Also fetch "My Drive" top-level folders (accounts where root != my drive)
+  const myDriveRes = await drive.files.list({
+    q: "mimeType='application/vnd.google-apps.folder' and trashed=false and 'me' in owners",
+    fields: "files(id,name,parents)",
+    pageSize: 100,
+    spaces: "drive",
+  })
+
+  // Merge, deduplicate by id
+  const seen = new Set<string>()
+  const all: { id: string; name: string }[] = []
+
+  for (const f of [...(rootRes.data.files ?? []), ...(myDriveRes.data.files ?? [])]) {
+    if (f.id && f.name && !seen.has(f.id)) {
+      seen.add(f.id)
+      all.push({ id: f.id, name: f.name })
+    }
+  }
+
+  return all.sort((a, b) => a.name.localeCompare(b.name))
 }
 
 export async function uploadFileToDrive(
