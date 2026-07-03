@@ -1,6 +1,13 @@
-import { sql } from "@vercel/postgres"
+import { neon } from "@neondatabase/serverless"
+
+function getSQL() {
+  const url = process.env.POSTGRES_URL ?? process.env.DATABASE_URL
+  if (!url) throw new Error("No Postgres connection string found. Set POSTGRES_URL in Vercel environment variables.")
+  return neon(url)
+}
 
 export async function initDB() {
+  const sql = getSQL()
   await sql`
     CREATE TABLE IF NOT EXISTS filing_log (
       id SERIAL PRIMARY KEY,
@@ -27,6 +34,7 @@ export async function insertLog(entry: {
   reason?: string
   driveLink?: string
 }) {
+  const sql = getSQL()
   await sql`
     INSERT INTO filing_log
       (user_email, filename, decision, folder_path, folder_id, confidence, reason, drive_link)
@@ -38,7 +46,8 @@ export async function insertLog(entry: {
 }
 
 export async function getLogs(userEmail: string, limit = 50) {
-  const { rows } = await sql`
+  const sql = getSQL()
+  const rows = await sql`
     SELECT * FROM filing_log
     WHERE user_email = ${userEmail}
     ORDER BY created_at DESC
@@ -48,32 +57,34 @@ export async function getLogs(userEmail: string, limit = 50) {
 }
 
 export async function getStats(userEmail: string) {
-  const { rows: today } = await sql`
+  const sql = getSQL()
+
+  const today = await sql`
     SELECT COUNT(*) as count FROM filing_log
     WHERE user_email = ${userEmail}
       AND decision = 'filed'
       AND created_at >= NOW() - INTERVAL '1 day'
   `
-  const { rows: review } = await sql`
+  const review = await sql`
     SELECT COUNT(*) as count FROM filing_log
     WHERE user_email = ${userEmail} AND decision = 'needs_review'
       AND created_at >= NOW() - INTERVAL '1 day'
   `
-  const { rows: total } = await sql`
+  const total = await sql`
     SELECT COUNT(*) as count FROM filing_log
     WHERE user_email = ${userEmail} AND decision = 'filed'
   `
-  const { rows: conf } = await sql`
+  const conf = await sql`
     SELECT confidence, COUNT(*) as count FROM filing_log
     WHERE user_email = ${userEmail} AND decision = 'filed'
     GROUP BY confidence
   `
-  const { rows: topFolders } = await sql`
+  const topFolders = await sql`
     SELECT folder_path, COUNT(*) as count FROM filing_log
     WHERE user_email = ${userEmail} AND decision = 'filed'
     GROUP BY folder_path ORDER BY count DESC LIMIT 6
   `
-  const { rows: weekly } = await sql`
+  const weekly = await sql`
     SELECT
       TO_CHAR(created_at, 'Dy') as day,
       SUM(CASE WHEN decision='filed' THEN 1 ELSE 0 END) as filed,
