@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { getServerSession } from "next-auth"
+import { authOptions } from "@/lib/auth"
 import { classifyFile, extractText } from "@/lib/classify"
 import { uploadFileToDrive, listFolderTree } from "@/lib/drive"
 import { insertLog, initDB } from "@/lib/db"
@@ -8,7 +9,7 @@ export const runtime = "nodejs"
 export const maxDuration = 60
 
 export async function POST(req: NextRequest) {
-  const session = await getServerSession()
+  const session = await getServerSession(authOptions)
   const accessToken = (session as any)?.accessToken
   const userEmail = (session as any)?.user?.email
 
