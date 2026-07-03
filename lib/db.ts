@@ -1,8 +1,12 @@
 import { neon } from "@neondatabase/serverless"
 
 function getSQL() {
-  const url = process.env.POSTGRES_URL ?? process.env.DATABASE_URL
-  if (!url) throw new Error("No Postgres connection string found. Set POSTGRES_URL in Vercel environment variables.")
+  const url =
+    process.env.POSTGRES_URL ??
+    process.env.DATABASE_URL ??
+    process.env.NEXTAUTH_POSTGRES_URL ??
+    process.env.NEXTAUTH_DATABASE_URL
+  if (!url) throw new Error("No Postgres connection string found.")
   return neon(url)
 }
 
